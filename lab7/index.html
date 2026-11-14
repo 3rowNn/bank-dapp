@@ -3,8 +3,8 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Bank DApp Lab 7</title>
-<script src="https://cdn.jsdelivr.net/npm/ethers@6.13.2/dist/ethers.umd.min.js"></script>
+<title>Bank DApp Lab 7 (Web3.js)</title>
+<script src="https://cdn.jsdelivr.net/npm/web3@1.10.4/dist/web3.min.js"></script>
 <style>
   :root {
     --bg: #f4f6fb; --card: #ffffff; --text: #1d2433; --muted: #6b7280;
@@ -36,7 +36,7 @@
 </head>
 <body>
 <header>
-  <h1>🏦 Bank DApp — Lab 7</h1>
+  <h1>🏦 Bank DApp — Lab 7 (Web3.js)</h1>
   <p>รหัสนักศึกษา: <b>66061285</b></p>
   <p>ชื่อ-สกุล: <b>ปฏิภาณ นาชัยฤทธิ์</b> (Patipan Nachairit)</p>
 </header>
@@ -97,18 +97,18 @@
 <footer>CSI — Smart Contract Bank DApp · 66061285 ปฏิภาณ นาชัยฤทธิ์</footer>
 
 <script>
-  // ใส่ address ของ contract ที่ deploy แล้วตรงนี้ (หรือกรอกในช่องบนหน้าเว็บ)
+  // Lab 7 — ใช้ Web3.js
   const DEFAULT_CONTRACT_ADDRESS = "0xcA9EF359e84f288dD2a8e5EB06EBda5DFcf4C024"; // Sepolia
 
   const ABI = [
-    "function deposit() payable",
-    "function withdraw(uint amount)",
-    "function checkBlance() view returns (uint balance)",
-    "event Deposit(address indexed owner, uint amount)",
-    "event Withdraw(address indexed owner, uint amount)"
+    { "inputs": [], "name": "deposit", "outputs": [], "stateMutability": "payable", "type": "function" },
+    { "inputs": [{ "internalType": "uint256", "name": "amount", "type": "uint256" }], "name": "withdraw", "outputs": [], "stateMutability": "nonpayable", "type": "function" },
+    { "inputs": [], "name": "checkBlance", "outputs": [{ "internalType": "uint256", "name": "balance", "type": "uint256" }], "stateMutability": "view", "type": "function" },
+    { "anonymous": false, "inputs": [{ "indexed": true, "internalType": "address", "name": "owner", "type": "address" }, { "indexed": false, "internalType": "uint256", "name": "amount", "type": "uint256" }], "name": "Deposit", "type": "event" },
+    { "anonymous": false, "inputs": [{ "indexed": true, "internalType": "address", "name": "owner", "type": "address" }, { "indexed": false, "internalType": "uint256", "name": "amount", "type": "uint256" }], "name": "Withdraw", "type": "event" }
   ];
 
-  let provider, signer, account, contract;
+  let web3, account, contract;
   const $ = (id) => document.getElementById(id);
 
   function setStatus(msg, type = "info") {
@@ -118,15 +118,19 @@
   }
 
   function errMsg(e) {
-    return e?.reason || e?.info?.error?.message || e?.shortMessage || e?.message || String(e);
+    const m = e?.message || String(e);
+    const r = m.match(/reverted with reason string '([^']+)'|execution reverted: ([^"\n]+)/);
+    return r ? (r[1] || r[2]) : m;
   }
 
+  const NETWORKS = { 1: "mainnet", 11155111: "sepolia", 560048: "hoodi" };
+
   async function updateWallet() {
-    const net = await provider.getNetwork();
+    const chainId = Number(await web3.eth.getChainId());
     $("account").textContent = account;
-    $("network").textContent = `${net.name} (chainId ${net.chainId})`;
-    const bal = await provider.getBalance(account);
-    $("walletBal").textContent = ethers.formatEther(bal) + " ETH";
+    $("network").textContent = `${NETWORKS[chainId] || "unknown"} (chainId ${chainId})`;
+    const bal = await web3.eth.getBalance(account);
+    $("walletBal").textContent = web3.utils.fromWei(bal, "ether") + " ETH";
   }
 
   async function connectWallet() {
@@ -135,14 +139,13 @@
       return;
     }
     try {
-      provider = new ethers.BrowserProvider(window.ethereum);
-      await provider.send("eth_requestAccounts", []);
-      signer = await provider.getSigner();
-      account = await signer.getAddress();
+      web3 = new Web3(window.ethereum);
+      const accounts = await window.ethereum.request({ method: "eth_requestAccounts" });
+      account = accounts[0];
       await updateWallet();
       $("btnConnect").textContent = "Connected ✓";
       $("btnContract").disabled = false;
-      setStatus("เชื่อมต่อ MetaMask สำเร็จ", "ok");
+      setStatus("เชื่อมต่อ MetaMask สำเร็จ (Web3.js " + Web3.version + ")", "ok");
       if ($("contractAddr").value) await connectContract();
     } catch (e) {
       setStatus("เชื่อมต่อไม่สำเร็จ: " + errMsg(e), "err");
@@ -151,40 +154,34 @@
 
   async function connectContract() {
     const addr = $("contractAddr").value.trim();
-    if (!ethers.isAddress(addr)) {
+    if (!web3.utils.isAddress(addr)) {
       setStatus("Contract address ไม่ถูกต้อง", "err");
       return;
     }
-    const code = await provider.getCode(addr);
+    const code = await web3.eth.getCode(addr);
     if (code === "0x") {
       setStatus("ไม่พบ contract ที่ address นี้บน network ปัจจุบัน (ตรวจสอบ network ใน MetaMask)", "err");
       return;
     }
-    if (contract) contract.removeAllListeners();
-    contract = new ethers.Contract(addr, ABI, signer);
+    contract = new web3.eth.Contract(ABI, addr);
     $("contractShow").textContent = addr;
     ["btnCheck", "btnDeposit", "btnWithdraw"].forEach((id) => ($(id).disabled = false));
-
-    contract.on("Deposit", (owner, amount) => addHistory("Deposit", owner, amount));
-    contract.on("Withdraw", (owner, amount) => addHistory("Withdraw", owner, amount));
-
     setStatus("เชื่อมต่อ Smart Contract สำเร็จ", "ok");
     await checkBalance();
   }
 
-  function addHistory(type, owner, amount) {
-    if (owner.toLowerCase() !== account.toLowerCase()) return;
+  function addHistory(type, amountWei) {
     const ul = $("history");
     if (ul.querySelector(".info")) ul.innerHTML = "";
     const li = document.createElement("li");
-    li.textContent = `${new Date().toLocaleTimeString()} — ${type} ${ethers.formatEther(amount)} ETH`;
+    li.textContent = `${new Date().toLocaleTimeString()} — ${type} ${web3.utils.fromWei(amountWei, "ether")} ETH`;
     ul.prepend(li);
   }
 
   async function checkBalance() {
     try {
-      const bal = await contract.checkBlance();
-      $("bankBal").textContent = ethers.formatEther(bal);
+      const bal = await contract.methods.checkBlance().call({ from: account });
+      $("bankBal").textContent = web3.utils.fromWei(bal, "ether");
     } catch (e) {
       setStatus("CheckBlance ผิดพลาด: " + errMsg(e), "err");
     }
@@ -195,9 +192,11 @@
     if (!amt || Number(amt) <= 0) return setStatus("กรุณาใส่จำนวนที่มากกว่า 0", "err");
     try {
       setStatus("กำลังส่งธุรกรรม Deposit... กรุณายืนยันใน MetaMask");
-      const tx = await contract.deposit({ value: ethers.parseEther(amt) });
-      setStatus("รอยืนยันธุรกรรม: " + tx.hash);
-      await tx.wait();
+      const value = web3.utils.toWei(amt, "ether");
+      const receipt = await contract.methods.deposit().send({ from: account, value })
+        .on("transactionHash", (h) => setStatus("รอยืนยันธุรกรรม: " + h));
+      const ev = receipt.events && receipt.events.Deposit;
+      addHistory("Deposit", ev ? ev.returnValues.amount : value);
       setStatus(`Deposit ${amt} ETH สำเร็จ`, "ok");
       $("depositAmt").value = "";
       await checkBalance();
@@ -211,10 +210,14 @@
     const amt = $("withdrawAmt").value;
     if (!amt || Number(amt) <= 0) return setStatus("กรุณาใส่จำนวนที่มากกว่า 0", "err");
     try {
+      const amount = web3.utils.toWei(amt, "ether");
+      // เช็กก่อนส่ง เพื่อแสดงข้อความ "not enough money" ให้ชัด
+      await contract.methods.withdraw(amount).call({ from: account });
       setStatus("กำลังส่งธุรกรรม Withdraw... กรุณายืนยันใน MetaMask");
-      const tx = await contract.withdraw(ethers.parseEther(amt));
-      setStatus("รอยืนยันธุรกรรม: " + tx.hash);
-      await tx.wait();
+      const receipt = await contract.methods.withdraw(amount).send({ from: account })
+        .on("transactionHash", (h) => setStatus("รอยืนยันธุรกรรม: " + h));
+      const ev = receipt.events && receipt.events.Withdraw;
+      addHistory("Withdraw", ev ? ev.returnValues.amount : amount);
       setStatus(`Withdraw ${amt} ETH สำเร็จ`, "ok");
       $("withdrawAmt").value = "";
       await checkBalance();
