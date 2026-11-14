@@ -4,97 +4,211 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>Bank DApp Lab 7 (Web3.js)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
 <script src="https://cdn.jsdelivr.net/npm/web3@1.10.4/dist/web3.min.js"></script>
 <style>
   :root {
-    --bg: #f4f6fb; --card: #ffffff; --text: #1d2433; --muted: #6b7280;
-    --primary: #3b4fe0; --primary-dark: #2c3cc0; --ok: #16a34a; --err: #dc2626; --border: #e5e7eb;
+    --bg: #0b0f1a; --bg2: #121829; --card: rgba(255,255,255,.04); --border: rgba(255,255,255,.08);
+    --text: #e8ecf6; --muted: #8b93a7; --accent: #7c5cff; --accent2: #22d3ee;
+    --ok: #34d399; --err: #f87171; --warn: #fbbf24; --radius: 18px;
   }
   * { box-sizing: border-box; }
-  body { margin: 0; font-family: "Segoe UI", Tahoma, sans-serif; background: var(--bg); color: var(--text); }
-  header { background: linear-gradient(90deg, #2f3fd8, #6b7bff); color: #fff; padding: 24px 16px; text-align: center; }
-  header h1 { margin: 0 0 6px; font-size: 1.8rem; }
-  header p { margin: 2px 0; opacity: .95; }
-  main { max-width: 720px; margin: 24px auto; padding: 0 16px; display: grid; gap: 16px; }
-  .card { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 20px; }
-  .card h2 { margin: 0 0 12px; font-size: 1.15rem; }
-  .row { display: flex; gap: 8px; flex-wrap: wrap; }
-  input { flex: 1; min-width: 160px; padding: 10px 12px; border: 1px solid var(--border); border-radius: 8px; font-size: 1rem; }
-  button { padding: 10px 18px; border: 0; border-radius: 8px; background: var(--primary); color: #fff; font-size: 1rem; cursor: pointer; }
-  button:hover { background: var(--primary-dark); }
-  button:disabled { background: #a5acd9; cursor: not-allowed; }
-  .info { font-size: .92rem; color: var(--muted); word-break: break-all; margin: 4px 0; }
-  .info b { color: var(--text); }
-  .balance { font-size: 2rem; font-weight: 700; margin: 8px 0; }
-  #status { padding: 10px 12px; border-radius: 8px; font-size: .92rem; display: none; word-break: break-all; }
-  #status.ok { display: block; background: #dcfce7; color: var(--ok); }
-  #status.err { display: block; background: #fee2e2; color: var(--err); }
-  #status.info { display: block; background: #e0e7ff; color: var(--primary-dark); }
-  ul { padding-left: 18px; margin: 0; font-size: .9rem; }
-  footer { text-align: center; color: var(--muted); font-size: .85rem; padding: 16px; }
+  body {
+    margin: 0; min-height: 100vh; color: var(--text);
+    font-family: "IBM Plex Sans Thai", system-ui, sans-serif;
+    background:
+      radial-gradient(900px 500px at 10% -10%, rgba(124,92,255,.25), transparent 60%),
+      radial-gradient(800px 500px at 110% 10%, rgba(34,211,238,.18), transparent 60%),
+      var(--bg);
+  }
+  .mono { font-family: "JetBrains Mono", monospace; }
+  .wrap { max-width: 980px; margin: 0 auto; padding: 0 16px; }
+
+  /* top bar */
+  nav { display: flex; align-items: center; justify-content: space-between; padding: 18px 0; gap: 12px; }
+  .brand { display: flex; align-items: center; gap: 10px; font-weight: 700; font-size: 1.15rem; }
+  .logo { width: 38px; height: 38px; border-radius: 12px; display: grid; place-items: center;
+    background: linear-gradient(135deg, var(--accent), var(--accent2)); font-size: 1.2rem; }
+  .tag { font-size: .72rem; padding: 3px 8px; border-radius: 999px; background: rgba(124,92,255,.18); color: #c4b5fd; font-weight: 600; }
+  .chip { display: flex; align-items: center; gap: 8px; padding: 8px 14px; border-radius: 999px;
+    background: var(--card); border: 1px solid var(--border); font-size: .88rem; }
+  .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--err); box-shadow: 0 0 0 3px rgba(248,113,113,.2); }
+  .dot.on { background: var(--ok); box-shadow: 0 0 0 3px rgba(52,211,153,.2); }
+
+  /* student */
+  .student { display: flex; flex-wrap: wrap; gap: 10px 24px; align-items: center; justify-content: space-between;
+    padding: 18px 22px; border-radius: var(--radius); margin-bottom: 18px;
+    background: linear-gradient(135deg, rgba(124,92,255,.22), rgba(34,211,238,.12)); border: 1px solid var(--border); }
+  .student h1 { margin: 0; font-size: 1.35rem; }
+  .student p { margin: 2px 0 0; color: var(--muted); font-size: .9rem; }
+  .sid { text-align: right; }
+  .sid .label { font-size: .75rem; color: var(--muted); text-transform: uppercase; letter-spacing: .08em; }
+  .sid .val { font-size: 1.3rem; font-weight: 700; letter-spacing: .04em; }
+
+  /* grid */
+  .grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 18px; }
+  .span2 { grid-column: span 2; }
+  .card { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); padding: 22px;
+    backdrop-filter: blur(10px); }
+  .card h2 { margin: 0 0 4px; font-size: 1.02rem; display: flex; align-items: center; gap: 8px; }
+  .card .sub { margin: 0 0 16px; color: var(--muted); font-size: .85rem; }
+  .step { width: 24px; height: 24px; border-radius: 8px; display: inline-grid; place-items: center; font-size: .78rem;
+    background: rgba(255,255,255,.08); color: var(--muted); }
+
+  /* balance hero */
+  .hero { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 16px;
+    background: linear-gradient(135deg, #1b1f3a, #11162a); position: relative; overflow: hidden; }
+  .hero::after { content: ""; position: absolute; right: -60px; top: -60px; width: 220px; height: 220px; border-radius: 50%;
+    background: radial-gradient(circle, rgba(124,92,255,.35), transparent 70%); }
+  .hero .label { color: var(--muted); font-size: .85rem; }
+  .balance { font-size: clamp(2.2rem, 7vw, 3.4rem); font-weight: 700; line-height: 1.1; margin: 6px 0 2px; }
+  .balance small { font-size: .45em; color: var(--muted); font-weight: 500; }
+  .meta { display: grid; gap: 6px; font-size: .85rem; color: var(--muted); }
+  .meta b { color: var(--text); font-weight: 500; word-break: break-all; }
+
+  /* inputs/buttons */
+  .field { display: flex; align-items: center; background: rgba(0,0,0,.25); border: 1px solid var(--border);
+    border-radius: 12px; padding: 4px 4px 4px 14px; transition: border-color .2s; }
+  .field:focus-within { border-color: var(--accent); }
+  .field input { flex: 1; min-width: 0; background: transparent; border: 0; outline: 0; color: var(--text);
+    font-size: 1.05rem; padding: 10px 0; font-family: inherit; }
+  .field .unit { color: var(--muted); font-size: .85rem; padding: 0 10px; }
+  .chips { display: flex; gap: 8px; margin: 10px 0 14px; flex-wrap: wrap; }
+  .chips button { padding: 6px 12px; font-size: .8rem; border-radius: 999px; background: rgba(255,255,255,.06);
+    border: 1px solid var(--border); color: var(--text); width: auto; }
+  .chips button:hover { background: rgba(255,255,255,.12); }
+  button { font-family: inherit; cursor: pointer; border: 0; border-radius: 12px; padding: 12px 18px; font-size: .95rem;
+    font-weight: 600; color: #fff; transition: transform .1s, opacity .2s, filter .2s; }
+  button:active { transform: scale(.98); }
+  button:disabled { opacity: .35; cursor: not-allowed; }
+  .btn-primary { background: linear-gradient(135deg, var(--accent), #5b8cff); width: 100%; }
+  .btn-ok { background: linear-gradient(135deg, #10b981, #34d399); width: 100%; }
+  .btn-warn { background: linear-gradient(135deg, #f97316, #fb7185); width: 100%; }
+  .btn-ghost { background: rgba(255,255,255,.08); border: 1px solid var(--border); }
+  .btn-sm { padding: 8px 12px; font-size: .8rem; border-radius: 10px; }
+  .row { display: flex; gap: 10px; flex-wrap: wrap; }
+  .row > * { flex: 1; }
+  .addr { display: flex; gap: 8px; align-items: center; }
+  .addr .field { flex: 1; min-width: 0; }
+  .grid > * { min-width: 0; }
+  .addr input { font-family: "JetBrains Mono", monospace; font-size: .85rem; }
+  a { color: var(--accent2); text-decoration: none; font-size: .85rem; }
+  a:hover { text-decoration: underline; }
+
+  /* history */
+  #history { list-style: none; padding: 0; margin: 0; display: grid; gap: 8px; max-height: 260px; overflow: auto; }
+  #history li { padding: 12px 14px; border-radius: 12px; background: rgba(0,0,0,.2); border: 1px solid var(--border); font-size: .9rem; }
+  #history li.info { color: var(--muted); text-align: center; border-style: dashed; }
+
+  /* toast */
+  #status { position: fixed; left: 50%; bottom: 22px; transform: translate(-50%, 140%); max-width: min(92vw, 560px);
+    padding: 12px 18px; border-radius: 14px; font-size: .9rem; word-break: break-all; opacity: 0;
+    transition: transform .3s, opacity .3s; z-index: 10; backdrop-filter: blur(10px); border: 1px solid var(--border); }
+  #status.ok, #status.err, #status.info { transform: translate(-50%, 0); opacity: 1; }
+  #status.ok { background: rgba(16,185,129,.18); color: #a7f3d0; border-color: rgba(52,211,153,.4); }
+  #status.err { background: rgba(239,68,68,.18); color: #fecaca; border-color: rgba(248,113,113,.4); }
+  #status.info { background: rgba(124,92,255,.2); color: #ddd6fe; border-color: rgba(124,92,255,.4); }
+
+  footer { text-align: center; color: var(--muted); font-size: .8rem; padding: 28px 16px 40px; }
+
+  @media (max-width: 720px) {
+    .grid { grid-template-columns: 1fr; }
+    .span2 { grid-column: auto; }
+    .sid { text-align: left; }
+    .brand .tag { display: none; }
+  }
 </style>
 </head>
 <body>
-<header>
-  <h1>🏦 Bank DApp — Lab 7 (Web3.js)</h1>
-  <p>รหัสนักศึกษา: <b>66061285</b></p>
-  <p>ชื่อ-สกุล: <b>ปฏิภาณ นาชัยฤทธิ์</b> (Patipan Nachairit)</p>
-</header>
+<div class="wrap">
+  <nav>
+    <div class="brand"><div class="logo">🏦</div> Bank DApp <span class="tag">Lab 7 · Web3.js</span></div>
+    <div class="chip"><span class="dot" id="dot"></span><span id="chipText">Not connected</span></div>
+  </nav>
 
-<main>
-  <!-- 1. Connect MetaMask -->
-  <section class="card">
-    <h2>1. เชื่อมต่อ MetaMask</h2>
-    <button id="btnConnect">Connect MetaMask</button>
-    <p class="info">Account: <b id="account">-</b></p>
-    <p class="info">Network: <b id="network">-</b></p>
-    <p class="info">Wallet balance: <b id="walletBal">-</b></p>
-  </section>
-
-  <!-- 2. Connect Smart Contract -->
-  <section class="card">
-    <h2>2. เชื่อมต่อ Smart Contract</h2>
-    <div class="row">
-      <input id="contractAddr" placeholder="Contract address (0x...)" />
-      <button id="btnContract" disabled>Connect Contract</button>
+  <section class="student">
+    <div>
+      <h1>ปฏิภาณ นาชัยฤทธิ์</h1>
+      <p>Patipan Nachairit · วิทยาการคอมพิวเตอร์ มหาวิทยาลัยศรีปทุม</p>
     </div>
-    <p class="info">Contract: <b id="contractShow">-</b></p>
+    <div class="sid"><div class="label">รหัสนักศึกษา</div><div class="val mono">66061285</div></div>
   </section>
 
-  <!-- 3. Check balance -->
-  <section class="card">
-    <h2>3. Check Balance</h2>
-    <div class="balance"><span id="bankBal">0</span> ETH</div>
-    <button id="btnCheck" disabled>CheckBlance</button>
-  </section>
+  <div class="grid">
+    <!-- Balance hero -->
+    <section class="card hero span2">
+      <div>
+        <div class="label">ยอดเงินในธนาคาร (CheckBlance)</div>
+        <div class="balance"><span id="bankBal">0</span> <small>ETH</small></div>
+        <button id="btnCheck" class="btn-ghost btn-sm" disabled>↻ CheckBlance</button>
+      </div>
+      <div class="meta">
+        <div>Account: <b class="mono" id="account">-</b></div>
+        <div>Network: <b id="network">-</b></div>
+        <div>Wallet: <b id="walletBal">-</b></div>
+      </div>
+    </section>
 
-  <!-- 4. Deposit -->
-  <section class="card">
-    <h2>4. Deposit</h2>
-    <div class="row">
-      <input id="depositAmt" type="number" min="0" step="any" placeholder="จำนวน ETH" />
-      <button id="btnDeposit" disabled>Deposit</button>
-    </div>
-  </section>
+    <!-- Connect MetaMask -->
+    <section class="card">
+      <h2><span class="step">1</span> เชื่อมต่อ MetaMask</h2>
+      <p class="sub">เลือกเครือข่าย Sepolia Testnet ใน MetaMask</p>
+      <button id="btnConnect" class="btn-primary">🦊 Connect MetaMask</button>
+    </section>
 
-  <!-- 5. Withdraw -->
-  <section class="card">
-    <h2>5. Withdraw</h2>
-    <div class="row">
-      <input id="withdrawAmt" type="number" min="0" step="any" placeholder="จำนวน ETH" />
-      <button id="btnWithdraw" disabled>Withdraw</button>
-    </div>
-  </section>
+    <!-- Connect contract -->
+    <section class="card">
+      <h2><span class="step">2</span> เชื่อมต่อ Smart Contract</h2>
+      <p class="sub">Contract: <span class="mono" id="contractShow">-</span></p>
+      <div class="addr">
+        <div class="field"><input id="contractAddr" placeholder="0x..." spellcheck="false" /></div>
+        <button id="copyAddr" class="btn-ghost btn-sm" type="button">Copy</button>
+      </div>
+      <div class="row" style="margin-top:12px; align-items:center">
+        <button id="btnContract" class="btn-primary" disabled>Connect Contract</button>
+      </div>
+      <p class="sub" style="margin:10px 0 0"><a id="explorer" target="_blank" rel="noopener">ดูบน Blockscout ↗</a></p>
+    </section>
 
-  <div id="status"></div>
+    <!-- Deposit -->
+    <section class="card">
+      <h2><span class="step">3</span> Deposit ฝากเงิน</h2>
+      <p class="sub">ส่ง ETH เข้าบัญชีของคุณใน contract</p>
+      <div class="field"><input id="depositAmt" type="number" min="0" step="any" placeholder="0.00" /><span class="unit">ETH</span></div>
+      <div class="chips">
+        <button data-fill="depositAmt" data-amt="0.001" type="button">0.001</button>
+        <button data-fill="depositAmt" data-amt="0.005" type="button">0.005</button>
+        <button data-fill="depositAmt" data-amt="0.01" type="button">0.01</button>
+      </div>
+      <button id="btnDeposit" class="btn-ok" disabled>Deposit</button>
+    </section>
 
-  <section class="card">
-    <h2>ประวัติรายการ (Events)</h2>
-    <ul id="history"><li class="info">ยังไม่มีรายการ</li></ul>
-  </section>
-</main>
+    <!-- Withdraw -->
+    <section class="card">
+      <h2><span class="step">4</span> Withdraw ถอนเงิน</h2>
+      <p class="sub">ถอนได้ไม่เกินยอดเงินในธนาคาร</p>
+      <div class="field"><input id="withdrawAmt" type="number" min="0" step="any" placeholder="0.00" /><span class="unit">ETH</span></div>
+      <div class="chips">
+        <button data-fill="withdrawAmt" data-amt="0.001" type="button">0.001</button>
+        <button data-fill="withdrawAmt" data-amt="0.005" type="button">0.005</button>
+        <button type="button" onclick="withdrawAmt.value = bankBal.textContent">ทั้งหมด</button>
+      </div>
+      <button id="btnWithdraw" class="btn-warn" disabled>Withdraw</button>
+    </section>
 
-<footer>CSI — Smart Contract Bank DApp · 66061285 ปฏิภาณ นาชัยฤทธิ์</footer>
+    <!-- History -->
+    <section class="card span2">
+      <h2>🧾 ประวัติรายการ</h2>
+      <p class="sub">รายการที่ทำในหน้านี้ (จาก Event Deposit / Withdraw)</p>
+      <ul id="history"><li class="info">ยังไม่มีรายการ</li></ul>
+    </section>
+  </div>
+</div>
+
+<div id="status"></div>
+
+<footer>Bank DApp · Lab 7 · Web3.js 1.10.4 · Sepolia Testnet<br />66061285 ปฏิภาณ นาชัยฤทธิ์</footer>
 
 <script>
   // Lab 7 — ใช้ Web3.js
@@ -238,6 +352,32 @@
     window.ethereum.on("accountsChanged", () => location.reload());
     window.ethereum.on("chainChanged", () => location.reload());
   }
+</script>
+<script>
+  // quick-amount chips + toast auto-hide + copy address
+  document.querySelectorAll("[data-fill]").forEach((b) =>
+    b.addEventListener("click", () => { $(b.dataset.fill).value = b.dataset.amt; $(b.dataset.fill).focus(); })
+  );
+  const _set = setStatus;
+  let _t;
+  setStatus = function (msg, type = "info") {
+    _set(msg, type);
+    clearTimeout(_t);
+    if (type !== "info") _t = setTimeout(() => ($("status").className = ""), 6000);
+  };
+  $("copyAddr").onclick = () => {
+    const v = $("contractAddr").value;
+    navigator.clipboard?.writeText(v);
+    $("copyAddr").textContent = "Copied";
+    setTimeout(() => ($("copyAddr").textContent = "Copy"), 1200);
+  };
+  $("explorer").href = "https://eth-sepolia.blockscout.com/address/" + DEFAULT_CONTRACT_ADDRESS;
+  // dot indicator when wallet connected
+  new MutationObserver(() => {
+    const on = $("account").textContent !== "-";
+    $("dot").classList.toggle("on", on);
+    $("chipText").textContent = on ? $("account").textContent.slice(0, 6) + "…" + $("account").textContent.slice(-4) : "Not connected";
+  }).observe($("account"), { childList: true, characterData: true, subtree: true });
 </script>
 </body>
 </html>
